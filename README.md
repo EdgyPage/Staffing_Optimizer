@@ -33,10 +33,15 @@ up) and negative when it has slack. Multiplying by `T` expresses the gap as work
 
 A network is rejected when the routing spectral radius reaches 1 (rework never drains).
 
-> **Dynamic congestion** (phase 2): backlog `B_i` with exponentially growing effective makespan
-> `m_eff = m · exp(β·B)` — the "backed-up" slowdown — where `β = 0` marks departments that don't
-> congest. At steady state it recovers the equilibrium above. **SKU-level makespan lookup** is also
-> phase 2.
+**Dynamic congestion** (`dynamics.py`): a time-stepped simulation where backlog `B_i` drives an
+exponentially growing effective makespan `m_eff = m · exp(β·B)` — the "backed-up" slowdown — with
+`β = 0` marking departments that don't congest. Each step routes the previous step's completions
+downstream (Jacobi iteration for `λ`), so with adequate staffing it converges to the equilibrium
+above and backlog stays bounded; under-staff a department and its backlog and makespan run away.
+
+**SKU-level makespan** (`skus.py`): supply a makespan per SKU per department and SKU demand; each
+SKU's throughput is `(I − P)⁻¹ d_k`, and the volume-weighted effective makespan collapses back to
+a single-makespan network that feeds the same engine unchanged.
 
 ## Install
 
@@ -76,8 +81,10 @@ rows = gap_report(net, actual=[15, 11, 10, 7, 4])  # per-dept SHORT / OK / SLACK
 
 ```
 staffing_optimizer/   network · equilibrium · gaps · report · io_scenario   (core, numpy only)
-app/dashboard.py      Streamlit live dashboard
+                      dynamics (backlog simulation) · skus (SKU makespan lookup)
+app/dashboard.py      Streamlit dashboard: Equilibrium & gaps / Backlog dynamics / SKU detail tabs
 examples/             sample scenarios (YAML: node table + routing edge list)
 solve.py              headless report entry point
-tests/                math checks (chain, analytic inverse, basis linearity, rework series)
+tests/                math checks (chain, analytic inverse, basis linearity, rework series,
+                      dynamics convergence/divergence, SKU effective makespan)
 ```

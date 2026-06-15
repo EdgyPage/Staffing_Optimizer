@@ -1,7 +1,7 @@
 """Streamlit dashboard for the warehouse staffing equilibrium optimizer.
 
-Edit departments, routing ratios, demand and headcount, and watch the equilibrium staffing
-split, the basis vectors and the per-department makespan gaps update live.
+Edit departments, routing ratios, demand and headcount, and explore three views live:
+equilibrium staffing & gaps, the time-stepped backlog dynamics, and SKU-level makespan.
 
 Run with::
 
@@ -20,9 +20,11 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from staffing_optimizer import dynamics as dyn  # noqa: E402
 from staffing_optimizer import equilibrium as eq  # noqa: E402
 from staffing_optimizer import gaps as gp  # noqa: E402
 from staffing_optimizer import io_scenario  # noqa: E402
+from staffing_optimizer import skus as sku  # noqa: E402
 from staffing_optimizer.network import DepartmentNetwork  # noqa: E402
 
 EXAMPLES = ROOT / "examples"
@@ -95,6 +97,24 @@ def load_into_state(net: DepartmentNetwork) -> None:
     st.session_state.ver = st.session_state.get("ver", 0) + 1
 
 
+def time_series_chart(result: dyn.SimulationResult, values: np.ndarray, names: list[str], y_title: str):
+    frame = pd.DataFrame(values, columns=names)
+    frame.insert(0, "period", result.times)
+    long = frame.melt("period", var_name="department", value_name="value")
+    return (
+        alt.Chart(long)
+        .mark_line()
+        .encode(
+            x=alt.X("period:Q", title="period"),
+            y=alt.Y("value:Q", title=y_title),
+            color=alt.Color("department:N", sort=names),
+            tooltip=["department", alt.Tooltip("period:Q", format=".2f"),
+                     alt.Tooltip("value:Q", format=".2f")],
+        )
+        .properties(height=320)
+    )
+
+
 # --------------------------------------------------------------------------- page
 st.set_page_config(page_title="Staffing Equilibrium Optimizer", layout="wide")
 st.title("Warehouse Staffing Equilibrium Optimizer")
@@ -150,139 +170,218 @@ lam = eq.throughput(net)
 required = eq.staffing_requirement(net)
 split = eq.staffing_split(net)
 feas = gp.feasibility(net, s)
+plan_key = "plan_" + "|".join(net.names)
 
-st.subheader("System equilibrium")
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Required FTE", f"{feas['required_fte']:.1f}")
-m2.metric("Headcount S", f"{s:.0f}")
-m3.metric("Utilization", f"{100 * feas['utilization']:.1f}%")
-m4.metric("Feasible?", "YES" if feas["feasible"] else f"SHORT {feas['shortfall_fte']:.1f} FTE")
-st.caption(
-    f"Root departments: {', '.join(net.root_names()) or '(none)'} · "
-    f"spectral radius {net.spectral_radius():.3f} · stable: {net.is_stable()}"
-)
+tab_eq, tab_dyn, tab_sku = st.tabs(["Equilibrium & gaps", "Backlog dynamics", "SKU detail"])
 
-summary = pd.DataFrame(
-    {
-        "department": net.names,
-        "throughput": lam,
-        "required FTE": required,
-        "split %": 100 * split,
-    }
-)
-left, right = st.columns([1.3, 1])
-with left:
-    st.dataframe(
-        summary, width="stretch", hide_index=True,
+# =========================================================== tab 1: equilibrium & gaps
+with tab_eq:
+    st.subheader("System equilibrium")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Required FTE", f"{feas['required_fte']:.1f}")
+    m2.metric("Headcount S", f"{s:.0f}")
+    m3.metric("Utilization", f"{100 * feas['utilization']:.1f}%")
+    m4.metric("Feasible?", "YES" if feas["feasible"] else f"SHORT {feas['shortfall_fte']:.1f} FTE")
+    st.caption(
+        f"Root departments: {', '.join(net.root_names()) or '(none)'} · "
+        f"spectral radius {net.spectral_radius():.3f} · stable: {net.is_stable()}"
+    )
+
+    summary = pd.DataFrame(
+        {"department": net.names, "throughput": lam, "required FTE": required, "split %": 100 * split}
+    )
+    left, right = st.columns([1.3, 1])
+    with left:
+        st.dataframe(
+            summary, width="stretch", hide_index=True,
+            column_config={
+                "throughput": st.column_config.NumberColumn(format="%.1f"),
+                "required FTE": st.column_config.NumberColumn(format="%.2f"),
+                "split %": st.column_config.NumberColumn(format="%.1f"),
+            },
+        )
+    with right:
+        st.bar_chart(summary.set_index("department")["required FTE"], height=260)
+
+    st.subheader("Staffing basis vectors")
+    st.caption(
+        "Each column is a basis vector: FTE needed across **all** departments per unit of demand "
+        "at a root. Any demand plan's staffing is the matching combination of these columns."
+    )
+    basis = eq.basis_matrix(net)
+    roots = net.root_nodes()
+    if roots:
+        heat = pd.DataFrame(
+            [
+                {"root": net.names[j], "department": net.names[i], "fte_per_unit": float(basis[i, j])}
+                for j in roots
+                for i in range(net.n)
+            ]
+        )
+        heat_chart = (
+            alt.Chart(heat)
+            .mark_rect()
+            .encode(
+                x=alt.X("root:N", title="unit demand at root", sort=[net.names[j] for j in roots]),
+                y=alt.Y("department:N", title=None, sort=net.names),
+                color=alt.Color("fte_per_unit:Q", title="FTE / unit", scale=alt.Scale(scheme="blues")),
+                tooltip=[
+                    alt.Tooltip("root:N"),
+                    alt.Tooltip("department:N"),
+                    alt.Tooltip("fte_per_unit:Q", title="FTE/unit", format=".4f"),
+                ],
+            )
+            .properties(height=80 + 26 * net.n)
+        )
+        st.altair_chart(heat_chart, width="stretch")
+    else:
+        st.info("No root departments detected (every department receives internal rework).")
+
+    st.subheader("Staffing plan & gaps")
+    st.caption(
+        "Actual staffing is seeded with a suggested allocation of the pool. Edit it to compare "
+        "against the requirement: a positive gap means the department is short and will back up."
+    )
+    plan_default = pd.DataFrame({"department": net.names, "actual FTE": gp.suggested_allocation(net, s)})
+    plan = st.data_editor(
+        plan_default, key=plan_key, num_rows="fixed", width="stretch",
         column_config={
-            "throughput": st.column_config.NumberColumn(format="%.1f"),
-            "required FTE": st.column_config.NumberColumn(format="%.2f"),
-            "split %": st.column_config.NumberColumn(format="%.1f"),
+            "department": st.column_config.TextColumn(disabled=True),
+            "actual FTE": st.column_config.NumberColumn(min_value=0.0, format="%.2f"),
         },
     )
-with right:
-    st.bar_chart(summary.set_index("department")["required FTE"], height=260)
+    actual = plan["actual FTE"].astype(float).to_numpy()
+    if actual.shape[0] != net.n:
+        actual = gp.suggested_allocation(net, s)
 
-st.subheader("Staffing basis vectors")
-st.caption(
-    "Each column is a basis vector: FTE needed across **all** departments per unit of demand at "
-    "a root. Any demand plan's staffing is the matching combination of these columns."
-)
-basis = eq.basis_matrix(net)
-roots = net.root_nodes()
-if roots:
-    heat = pd.DataFrame(
+    rows = gp.gap_report(net, actual)
+    gap_df = pd.DataFrame(
         [
-            {"root": net.names[j], "department": net.names[i], "fte_per_unit": float(basis[i, j])}
-            for j in roots
-            for i in range(net.n)
+            {"department": r.name, "required": r.required_fte, "actual": r.actual_fte,
+             "gap FTE": r.gap_fte, "gap time": r.gap_time, "status": r.status}
+            for r in rows
         ]
     )
-    heat_chart = (
-        alt.Chart(heat)
-        .mark_rect()
+    gap_chart = (
+        alt.Chart(gap_df)
+        .mark_bar()
         .encode(
-            x=alt.X("root:N", title="unit demand at root", sort=[net.names[j] for j in roots]),
-            y=alt.Y("department:N", title=None, sort=net.names),
-            color=alt.Color("fte_per_unit:Q", title="FTE / unit", scale=alt.Scale(scheme="blues")),
-            tooltip=[
-                alt.Tooltip("root:N"),
-                alt.Tooltip("department:N"),
-                alt.Tooltip("fte_per_unit:Q", title="FTE/unit", format=".4f"),
-            ],
+            x=alt.X("department:N", title=None, sort=net.names),
+            y=alt.Y("gap FTE:Q", title="gap (FTE):  + short  /  − slack"),
+            color=alt.Color(
+                "status:N", title="status",
+                scale=alt.Scale(domain=["SHORT", "OK", "SLACK"], range=["#d62728", "#9e9e9e", "#2ca02c"]),
+            ),
+            tooltip=["department", alt.Tooltip("required:Q", format=".2f"),
+                     alt.Tooltip("actual:Q", format=".2f"), alt.Tooltip("gap FTE:Q", format="+.2f"), "status"],
         )
-        .properties(height=80 + 26 * net.n)
     )
-    st.altair_chart(heat_chart, width="stretch")
-else:
-    st.info("No root departments detected (every department receives internal rework).")
-
-st.subheader("Staffing plan & gaps")
-st.caption(
-    "Actual staffing is seeded with a suggested allocation of the pool. Edit it to compare against "
-    "the requirement: a positive gap means the department is short and will back up."
-)
-plan_key = "plan_" + "|".join(net.names)
-plan_default = pd.DataFrame(
-    {"department": net.names, "actual FTE": gp.suggested_allocation(net, s)}
-)
-plan = st.data_editor(
-    plan_default, key=plan_key, num_rows="fixed", width="stretch",
-    column_config={
-        "department": st.column_config.TextColumn(disabled=True),
-        "actual FTE": st.column_config.NumberColumn(min_value=0.0, format="%.2f"),
-    },
-)
-actual = plan["actual FTE"].astype(float).to_numpy()
-if actual.shape[0] != net.n:
-    actual = gp.suggested_allocation(net, s)
-
-rows = gp.gap_report(net, actual)
-gap_df = pd.DataFrame(
-    [
-        {
-            "department": r.name,
-            "required": r.required_fte,
-            "actual": r.actual_fte,
-            "gap FTE": r.gap_fte,
-            "gap time": r.gap_time,
-            "status": r.status,
-        }
-        for r in rows
-    ]
-)
-gap_chart = (
-    alt.Chart(gap_df)
-    .mark_bar()
-    .encode(
-        x=alt.X("department:N", title=None, sort=net.names),
-        y=alt.Y("gap FTE:Q", title="gap (FTE):  + short  /  − slack"),
-        color=alt.Color(
-            "status:N",
-            title="status",
-            scale=alt.Scale(domain=["SHORT", "OK", "SLACK"], range=["#d62728", "#9e9e9e", "#2ca02c"]),
-        ),
-        tooltip=[
-            "department",
-            alt.Tooltip("required:Q", format=".2f"),
-            alt.Tooltip("actual:Q", format=".2f"),
-            alt.Tooltip("gap FTE:Q", format="+.2f"),
-            "status",
-        ],
+    st.altair_chart(gap_chart, width="stretch")
+    st.dataframe(
+        gap_df, width="stretch", hide_index=True,
+        column_config={
+            "required": st.column_config.NumberColumn(format="%.2f"),
+            "actual": st.column_config.NumberColumn(format="%.2f"),
+            "gap FTE": st.column_config.NumberColumn(format="%+.2f"),
+            "gap time": st.column_config.NumberColumn("gap (work-time/period)", format="%+.1f"),
+        },
     )
-)
-st.altair_chart(gap_chart, width="stretch")
-st.dataframe(
-    gap_df, width="stretch", hide_index=True,
-    column_config={
-        "required": st.column_config.NumberColumn(format="%.2f"),
-        "actual": st.column_config.NumberColumn(format="%.2f"),
-        "gap FTE": st.column_config.NumberColumn(format="%+.2f"),
-        "gap time": st.column_config.NumberColumn("gap (work-time/period)", format="%+.1f"),
-    },
-)
 
-st.caption(
-    "Phase 2 (planned): a Dynamics tab with the time-stepped exponential-backlog simulation, and "
-    "a SKU tab for per-SKU makespan lookup."
-)
+# =========================================================== tab 2: backlog dynamics
+with tab_dyn:
+    st.subheader("Backlog dynamics")
+    st.caption(
+        "Effective makespan grows as m·exp(β·B), so an under-staffed department's backlog and "
+        "makespan run away. With adequate staffing the simulation converges to the equilibrium "
+        "throughput λ and backlog stays bounded. β=0 departments never congest."
+    )
+    source = st.radio(
+        "Staffing to simulate",
+        ["Equilibrium requirement (s*)", "Suggested allocation (S)", "From plan editor"],
+        horizontal=True,
+    )
+    scale = st.slider("Staffing scale factor", 0.50, 1.50, 1.00, 0.05,
+                      help="Scale the chosen staffing to induce a shortage (<1) or surplus (>1).")
+    ctrl1, ctrl2 = st.columns(2)
+    dt = ctrl1.number_input("Δt (periods per step)", 0.005, 1.0, 0.05, step=0.005, format="%.3f")
+    horizon = ctrl2.number_input("Horizon (periods)", 1.0, 300.0, 50.0, step=5.0)
+
+    if source.startswith("Equilibrium"):
+        base_staffing = required
+    elif source.startswith("Suggested"):
+        base_staffing = gp.suggested_allocation(net, s)
+    else:
+        base_staffing = actual  # defined in the equilibrium tab above
+    sim_staffing = np.asarray(base_staffing, dtype=float) * scale
+
+    result = dyn.simulate(net, sim_staffing, dt=dt, horizon=horizon)
+    diverging = dyn.diverging_departments(result)
+    if diverging:
+        st.warning("Backlog diverging at: " + ", ".join(net.names[i] for i in diverging))
+    else:
+        st.success("All departments stable — backlog stays bounded and completions track λ.")
+
+    st.markdown("**Backlog over time** (units waiting)")
+    st.altair_chart(time_series_chart(result, result.backlog, net.names, "backlog (units)"), width="stretch")
+    st.markdown("**Effective makespan over time** (time per unit)")
+    st.altair_chart(
+        time_series_chart(result, result.effective_makespan, net.names, "effective makespan"),
+        width="stretch",
+    )
+
+# =========================================================== tab 3: SKU detail
+with tab_sku:
+    st.subheader("SKU-level makespan")
+    st.caption(
+        "Give a makespan per SKU per department and a quantity per SKU (entering at the first "
+        "root). The volume-weighted effective makespan feeds the same engine, so basis vectors, "
+        "gaps and dynamics all still apply."
+    )
+    roots = net.root_nodes()
+    if not roots:
+        st.info("Define a root department (one with no inbound routing) to drive SKU demand.")
+    else:
+        root0 = roots[0]
+        sku_default = pd.DataFrame({"sku": ["A-fast", "B-standard", "C-bulk"],
+                                    "quantity": [1500.0, 1800.0, 500.0]})
+        for nm in net.names:
+            base = float(net.makespan[net.index(nm)])
+            sku_default[nm] = [round(base * f, 3) for f in (0.8, 1.0, 1.6)]
+        sku_tbl = st.data_editor(sku_default, key=f"sku_{plan_key}", num_rows="dynamic", width="stretch")
+
+        try:
+            sku_names = [str(x) for x in sku_tbl["sku"].tolist()]
+            quantity = sku_tbl["quantity"].astype(float).fillna(0.0).to_numpy()
+            sku_makespan = sku_tbl[list(net.names)].astype(float).to_numpy()
+            sku_demand = np.zeros((len(sku_names), net.n))
+            sku_demand[:, root0] = quantity
+            workload = sku.sku_workload(net, sku_makespan, sku_demand, skus=sku_names)
+            agg = sku.aggregate_network(net, sku_makespan, sku_demand)
+        except (ValueError, KeyError) as exc:
+            st.error(f"Could not resolve SKU workload: {exc}")
+            st.stop()
+
+        sku_feas = gp.feasibility(agg, s)
+        d1, d2 = st.columns(2)
+        d1.metric("SKU-resolved required FTE", f"{workload.required_fte.sum():.1f}",
+                  delta=f"{workload.required_fte.sum() - required.sum():+.1f} vs base")
+        d2.metric("Utilization", f"{100 * sku_feas['utilization']:.1f}%")
+
+        out = pd.DataFrame(
+            {
+                "department": net.names,
+                "throughput": workload.total_units,
+                "effective makespan": workload.effective_makespan,
+                "required FTE": workload.required_fte,
+                "split %": 100 * eq.staffing_split(agg),
+            }
+        )
+        st.dataframe(
+            out, width="stretch", hide_index=True,
+            column_config={
+                "throughput": st.column_config.NumberColumn(format="%.1f"),
+                "effective makespan": st.column_config.NumberColumn(format="%.3f"),
+                "required FTE": st.column_config.NumberColumn(format="%.2f"),
+                "split %": st.column_config.NumberColumn(format="%.1f"),
+            },
+        )
