@@ -1,0 +1,19 @@
+name: warehouse_5dept
+time_per_employee: 480      # T, productive minutes per shift per employee
+headcount: 50               # S, closed pool of employees
+
+departments:
+  - {name: Receiving, makespan: 2.0, demand: 3800, congestion: 0.0}   # root: inbound only
+  - {name: Putaway,   makespan: 1.5, demand: 0,    congestion: 0.02}
+  - {name: Picking,   makespan: 1.0, demand: 0,    congestion: 0.03}
+  - {name: Packing,   makespan: 0.8, demand: 0,    congestion: 0.02}
+  - {name: Shipping,  makespan: 0.5, demand: 0,    congestion: 0.0}    # automated: no congestion
+
+# fraction of FROM's completed output that becomes TO's new work
+routes:
+  - {from: Receiving, to: Putaway,  ratio: 1.0}
+  - {from: Putaway,   to: Picking,  ratio: 1.0}
+  - {from: Picking,   to: Packing,  ratio: 1.0}
+  - {from: Packing,   to: Shipping, ratio: 1.0}
+  - {from: Packing,   to: Picking,  ratio: 0.10}   # rework loop: short-pick / repack
+  - {from: Shipping,  to: Packing,  ratio: 0.05}   # rework loop: re-ship / repack
