@@ -13,6 +13,18 @@ Each step routes the previous step's completions downstream (an explicit one-ste
 which is the Jacobi iteration for ``lambda = (I - P)^-1 d``.  So with ample staffing the
 simulation converges to the static equilibrium throughput ``lambda`` and the backlog stays
 bounded — the dynamic and static models agree.
+
+If a department sets ``buffer_capacity`` (max backlog), **backpressure** throttles its upstream
+feeders as the buffer fills, so under overload the queue propagates upstream toward the root
+instead of piling up only at the bottleneck.
+
+Usage::
+
+    from staffing_optimizer import dynamics as dyn, equilibrium as eq
+
+    result = dyn.simulate(net, staffing=eq.staffing_requirement(net), dt=0.05, horizon=50)
+    result.final_backlog                # backlog per department at the end
+    dyn.diverging_departments(result)   # departments still falling behind (backlog growing)
 """
 from __future__ import annotations
 

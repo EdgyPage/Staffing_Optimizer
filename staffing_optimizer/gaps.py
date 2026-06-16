@@ -4,6 +4,14 @@ Given the equilibrium requirement ``s*`` and an *actual* staffing vector ``s``, 
 ``s*_i - s_i`` is positive when a department is short (its backlog will grow) and negative
 when it has slack.  Multiplying by ``T`` re-expresses the gap as work-time per period, which
 is how a shortfall is communicated to operations ("Picking is ~1,500 minutes/shift short").
+
+Usage::
+
+    from staffing_optimizer import gaps
+
+    gaps.feasibility(net, headcount=20)            # required vs available, utilization
+    rows = gaps.gap_report(net, actual=[12, 9])    # per-department SHORT / OK / SLACK rows
+    gaps.suggested_allocation(net, 20)             # balanced allocation of the pool
 """
 from __future__ import annotations
 

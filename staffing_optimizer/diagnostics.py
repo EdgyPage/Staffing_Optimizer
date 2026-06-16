@@ -7,6 +7,13 @@ time and surfaced by the parser in `dsl.py`.
 
 Also exposes pure-Python graph helpers (`reachable_from_edges`, `reachability`, `rework_edges`,
 `unreachable_departments`, `find_cycle`) used by both the parser and the diagram renderer.
+
+Usage::
+
+    from staffing_optimizer.diagnostics import diagnose
+
+    for d in diagnose(net):   # warnings + info (hard errors are caught at construction / by dsl)
+        print(d)              # e.g. "[WARNING] 'Picking' is unreachable from any root ..."
 """
 from __future__ import annotations
 

@@ -1,3 +1,5 @@
+# Use with:  python solve.py examples/warehouse_5dept.yaml   (--headcount / --actual to explore)
+#            or load it from the dashboard sidebar:  streamlit run app/dashboard.py
 name: warehouse_5dept
 time_per_employee: 480      # T, productive minutes per shift per employee
 headcount: 50               # S, closed pool of employees

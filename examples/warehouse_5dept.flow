@@ -1,4 +1,6 @@
 # Warehouse design — arrow-flow format
+# Use with:  python design.py examples/warehouse_5dept.flow   (add --image for a PNG)
+#            or open the dashboard's "Design & diagram" tab and paste/edit this text.
 # Lines starting with # are comments.
 
 period_time = 480           # productive minutes per shift per employee (T)

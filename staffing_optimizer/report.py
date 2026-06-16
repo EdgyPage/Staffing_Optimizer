@@ -2,6 +2,13 @@
 
 Used by ``solve.py`` and handy in tests/notebooks.  Pure text — no third-party deps beyond
 numpy — so it works without the dashboard stack installed.
+
+Usage::
+
+    from staffing_optimizer.report import format_report
+
+    print(format_report(net, headcount=20))      # throughput, split, feasibility summary
+    print(format_report(net, actual=[12, 9]))    # adds actual / gap / status columns
 """
 from __future__ import annotations
 

@@ -5,6 +5,18 @@ Model a network of departments that send work to each other in fixed ratios, the
 - **basis vectors** mapping demand to a system-wide staffing requirement (``basis_matrix``),
 - the **staffing split** that keeps every department balanced (``staffing_split``), and
 - **makespan gaps / staffing shorts** against a closed headcount (``gap_report``).
+
+Quick start::
+
+    import staffing_optimizer as so
+
+    net = so.load_scenario("examples/warehouse_5dept.yaml")
+    so.staffing_split(net)                        # balanced staffing fractions
+    print(so.format_report(net, headcount=50))    # full text report
+
+CLIs: ``python solve.py <scenario.yaml>`` (headless report) and
+``python design.py <design.flow>`` (validate + draw a design). Interactive app:
+``streamlit run app/dashboard.py``. Each module has a ``Usage`` block showing its own API.
 """
 from staffing_optimizer.diagnostics import Diagnostic, Severity, diagnose
 from staffing_optimizer.diagram import DiagramModel, render_image, to_dot, to_mermaid

@@ -3,6 +3,14 @@
 The primary format is YAML: a node table (``departments``) plus a routing edge list
 (``routes``), both human-editable.  A light CSV loader (separate nodes + routes files) is
 also provided for spreadsheet workflows.
+
+Usage::
+
+    from staffing_optimizer import io_scenario
+
+    net = io_scenario.load_scenario("examples/warehouse_5dept.yaml")
+    net = io_scenario.loads(yaml_text)              # parse from a string
+    io_scenario.save_scenario(net, "out.yaml")     # write back to YAML
 """
 from __future__ import annotations
 

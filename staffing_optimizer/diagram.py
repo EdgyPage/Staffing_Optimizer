@@ -9,6 +9,15 @@ result that may be invalid (`from_parse`). It renders to:
 - `render_image` — a PNG/SVG image file (needs the optional `viz` extra: matplotlib + networkx).
 
 Roots are highlighted; rework edges (those that loop back) are drawn dashed and red.
+
+Usage::
+
+    from staffing_optimizer.diagram import DiagramModel, to_dot, to_mermaid, render_image
+
+    model = DiagramModel.from_network(net)
+    dot = to_dot(model)                    # pass to st.graphviz_chart(dot) in the dashboard
+    open("system.mmd", "w").write(to_mermaid(model))
+    render_image(model, "system.png")      # PNG image file (needs the viz extra)
 """
 from __future__ import annotations
 

@@ -14,6 +14,17 @@ Format::
 `#` comments and blank lines are ignored. `parse_design` never raises on bad input — it returns
 a `DesignParseResult` whose `diagnostics` describe every problem (with line numbers) and whose
 `network` is built only when the design is structurally sound.
+
+Usage::
+
+    from staffing_optimizer.dsl import parse_design, dump_design
+
+    result = parse_design(open("examples/warehouse_5dept.flow").read())
+    result.ok          # False if any error-level diagnostics
+    result.network     # a DepartmentNetwork, or None if unsound
+    for d in result.diagnostics:
+        print(d)       # e.g. "[ERROR] line 5: Flow references undefined department 'C'."
+    print(dump_design(result.network))   # serialize a network back to .flow text
 """
 from __future__ import annotations
 

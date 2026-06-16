@@ -10,6 +10,19 @@ All quantities are per-period.  ``makespan`` is processing-time-per-unit per emp
 ``time_per_employee`` (T) is the productive time one employee supplies per period, so a
 department's processing-time requirement converts to full-time-equivalents (FTE) by
 dividing work-time by T.
+
+Usage::
+
+    from staffing_optimizer.network import DepartmentNetwork
+
+    net = DepartmentNetwork(
+        names=["Receiving", "Picking"],
+        routing=[[0.0, 0.0], [1.0, 0.0]],     # Receiving -> Picking
+        demand=[1000, 0], makespan=[2.0, 1.0],
+        time_per_employee=480, headcount=20,
+    )
+    net.root_names()        # ['Receiving']
+    net.spectral_radius()   # must be < 1, else construction raises ValueError
 """
 from __future__ import annotations
 

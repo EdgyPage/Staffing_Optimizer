@@ -10,6 +10,14 @@ Given a makespan table ``m[k, i]`` (SKU k at department i) and exogenous SKU dem
 total work-time at department i is ``sum_k lambda_{k,i} * m[k, i]``, and the effective
 makespan is that divided by total units — so ``staffing_requirement`` of the aggregated
 network exactly reproduces the SKU-resolved work-time.
+
+Usage::
+
+    from staffing_optimizer import skus
+
+    # sku_makespan[k, i] and sku_demand[k, i] are (n_sku x n_dept) arrays
+    wl = skus.sku_workload(net, sku_makespan, sku_demand)        # effective makespan, FTE
+    agg = skus.aggregate_network(net, sku_makespan, sku_demand)  # plugs into the same engine
 """
 from __future__ import annotations
 

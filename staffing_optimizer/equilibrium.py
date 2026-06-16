@@ -11,6 +11,15 @@ The staffing *basis matrix* maps demand to required full-time-equivalents (FTE):
 Each column ``M[:, j]`` is a basis vector: the staffing footprint across *all* departments
 caused by one unit of exogenous demand at node *j*.  Required staffing for any demand plan
 is the matching linear combination of those columns.
+
+Usage::
+
+    from staffing_optimizer import equilibrium as eq
+
+    eq.throughput(net)           # lambda: required throughput per department
+    eq.basis_matrix(net)         # M: columns are per-root staffing basis vectors
+    eq.staffing_requirement(net) # s* = M @ d: minimum FTE per department
+    eq.staffing_split(net)       # balanced staffing as fractions summing to 1
 """
 from __future__ import annotations
 
