@@ -51,3 +51,40 @@ def test_zero_congestion_keeps_makespan_constant():
     assert 1 in dyn.diverging_departments(result)
     # ...but with beta = 0 the effective makespan never changes.
     assert np.allclose(result.effective_makespan[:, 1], net.makespan[1])
+
+
+def _bare_chain(buffer_capacity=None):
+    routing = np.zeros((3, 3))
+    routing[1, 0] = 1.0  # A -> B
+    routing[2, 1] = 1.0  # B -> C
+    return DepartmentNetwork(
+        ["A", "B", "C"], routing, demand=[100, 0, 0], makespan=[1.0, 1.0, 1.0],
+        time_per_employee=1.0, buffer_capacity=buffer_capacity,
+    )
+
+
+def test_backpressure_propagates_backlog_upstream():
+    staffing = [100, 100, 40]  # C is the downstream bottleneck
+    open_run = dyn.simulate(_bare_chain(), staffing, dt=0.05, horizon=60.0)
+    bp_run = dyn.simulate(_bare_chain([np.inf, 50, 50]), staffing, dt=0.05, horizon=60.0)
+
+    # Without backpressure only the bottleneck C backs up; the root A stays clear.
+    assert open_run.final_backlog[0] < 1.0
+    assert dyn.diverging_departments(open_run) == [2]
+
+    # With backpressure the queue propagates to the root; C stays bounded near its buffer.
+    assert bp_run.final_backlog[0] > 100.0
+    assert bp_run.final_backlog[2] < open_run.final_backlog[2]
+    assert 0 in dyn.diverging_departments(bp_run)
+
+
+def test_backpressure_preserves_equilibrium_with_adequate_staffing():
+    net = _bare_chain([np.inf, 50, 50])
+    result = dyn.simulate(net, 2.0 * eq.staffing_requirement(net), dt=0.05, horizon=30.0)
+    assert result.final_completions == pytest.approx(eq.throughput(net), rel=1e-3)
+    assert dyn.diverging_departments(result) == []
+
+
+def test_invalid_backpressure_band_raises():
+    with pytest.raises(ValueError):
+        dyn.simulate(_bare_chain(), [100, 100, 100], backpressure_band=0.0)

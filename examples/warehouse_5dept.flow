@@ -5,11 +5,11 @@ period_time = 480           # productive minutes per shift per employee (T)
 headcount   = 50            # closed pool of employees (S)
 
 # Departments:  Name [makespan=.., demand=.., congestion=..]
-Receiving [makespan=2.0, demand=3800]      # root: inbound only
-Putaway   [makespan=1.5, congestion=0.02]
-Picking   [makespan=1.0, congestion=0.03]
-Packing   [makespan=0.8, congestion=0.02]
-Shipping  [makespan=0.5]                    # automated: no congestion
+Receiving [makespan=2.0, demand=3800]                  # root: inbound only
+Putaway   [makespan=1.5, congestion=0.02, buffer=2500]
+Picking   [makespan=1.0, congestion=0.03, buffer=2500]
+Packing   [makespan=0.8, congestion=0.02, buffer=2500]
+Shipping  [makespan=0.5]                                # automated: no congestion
 
 # Flows:  FROM -> TO : ratio   (fraction of FROM's output that becomes TO's work)
 Receiving -> Putaway  : 1.0

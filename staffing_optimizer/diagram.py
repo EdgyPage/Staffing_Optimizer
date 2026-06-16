@@ -12,6 +12,7 @@ Roots are highlighted; rework edges (those that loop back) are drawn dashed and 
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from staffing_optimizer.diagnostics import _roots_first, back_edges
@@ -54,6 +55,8 @@ class DiagramModel:
             bits = [f"m={_num(net.makespan[i])}"]
             if net.demand[i]:
                 bits.append(f"d={_num(net.demand[i])}")
+            if net.buffer_capacity is not None and math.isfinite(net.buffer_capacity[i]):
+                bits.append(f"buf={_num(net.buffer_capacity[i])}")
             if lam is not None:
                 bits.append(f"λ={lam[i]:.0f}")
             nodes.append(NodeView(nm, ", ".join(bits), i in roots))

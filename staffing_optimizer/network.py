@@ -36,6 +36,7 @@ class DepartmentNetwork:
     time_per_employee: float = 1.0   # T; productive time per employee per period (units match makespan)
     headcount: float | None = None   # S; total closed pool of employees (optional)
     congestion: np.ndarray | None = None  # beta, shape (n,); exponential backlog coefficients (dynamics)
+    buffer_capacity: np.ndarray | None = None  # B_max, shape (n,); max backlog before backpressure (inf = unbounded)
     name: str | None = None          # optional scenario label, for reports/UI
 
     def __post_init__(self) -> None:
@@ -45,6 +46,8 @@ class DepartmentNetwork:
         self.makespan = np.asarray(self.makespan, dtype=float)
         if self.congestion is not None:
             self.congestion = np.asarray(self.congestion, dtype=float)
+        if self.buffer_capacity is not None:
+            self.buffer_capacity = np.asarray(self.buffer_capacity, dtype=float)
         self.validate()
 
     # -- structure -------------------------------------------------------------
@@ -66,6 +69,8 @@ class DepartmentNetwork:
             raise ValueError(f"makespan must have length {n}, got {self.makespan.shape}")
         if self.congestion is not None and self.congestion.shape != (n,):
             raise ValueError(f"congestion must have length {n}, got {self.congestion.shape}")
+        if self.buffer_capacity is not None and self.buffer_capacity.shape != (n,):
+            raise ValueError(f"buffer_capacity must have length {n}, got {self.buffer_capacity.shape}")
 
         if not np.all(np.isfinite(self.routing)) or np.any(self.routing < 0):
             raise ValueError("routing entries must be finite and non-negative")
@@ -81,6 +86,10 @@ class DepartmentNetwork:
             not np.all(np.isfinite(self.congestion)) or np.any(self.congestion < 0)
         ):
             raise ValueError("congestion coefficients must be finite and non-negative")
+        if self.buffer_capacity is not None and (
+            np.any(np.isnan(self.buffer_capacity)) or np.any(self.buffer_capacity <= 0)
+        ):
+            raise ValueError("buffer_capacity must be strictly positive (use inf for unbounded)")
 
         rho = self.spectral_radius()
         if rho > 1.0 - _SPECTRAL_TOL:

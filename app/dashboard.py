@@ -35,12 +35,17 @@ EXAMPLES = ROOT / "examples"
 
 # --------------------------------------------------------------------------- helpers
 def net_to_frames(net: DepartmentNetwork) -> tuple[pd.DataFrame, pd.DataFrame]:
+    buffer = net.buffer_capacity
     depts = pd.DataFrame(
         {
             "department": net.names,
             "makespan": net.makespan,
             "demand": net.demand,
             "congestion": net.congestion if net.congestion is not None else np.zeros(net.n),
+            "buffer": [
+                np.nan if buffer is None or not np.isfinite(buffer[i]) else float(buffer[i])
+                for i in range(net.n)
+            ],
         }
     )
     rows = []
@@ -55,7 +60,7 @@ def net_to_frames(net: DepartmentNetwork) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def frames_to_net(depts: pd.DataFrame, routes: pd.DataFrame, t: float, s: float) -> DepartmentNetwork:
-    names, makespan, demand, congestion = [], [], [], []
+    names, makespan, demand, congestion, buffers = [], [], [], [], []
     for _, row in depts.iterrows():
         nm = str(row.get("department", "") or "").strip()
         mk = row.get("makespan")
@@ -67,6 +72,8 @@ def frames_to_net(depts: pd.DataFrame, routes: pd.DataFrame, t: float, s: float)
         demand.append(float(d) if pd.notna(d) else 0.0)
         c = row.get("congestion", 0.0)
         congestion.append(float(c) if pd.notna(c) else 0.0)
+        b = row.get("buffer")
+        buffers.append(float(b) if pd.notna(b) else np.inf)
 
     idx = {nm: i for i, nm in enumerate(names)}
     routing = np.zeros((len(names), len(names)))
@@ -77,6 +84,7 @@ def frames_to_net(depts: pd.DataFrame, routes: pd.DataFrame, t: float, s: float)
         if frm in idx and to in idx and pd.notna(ratio):
             routing[idx[to], idx[frm]] = float(ratio)
 
+    buffer_capacity = np.array(buffers) if any(np.isfinite(x) for x in buffers) else None
     return DepartmentNetwork(
         names=names,
         routing=routing,
@@ -85,6 +93,7 @@ def frames_to_net(depts: pd.DataFrame, routes: pd.DataFrame, t: float, s: float)
         time_per_employee=t,
         headcount=s,
         congestion=np.array(congestion),
+        buffer_capacity=buffer_capacity,
     )
 
 
@@ -154,6 +163,10 @@ with c1:
             "makespan": st.column_config.NumberColumn("makespan (time/unit)", min_value=0.0, format="%.3f"),
             "demand": st.column_config.NumberColumn("demand (units)", min_value=0.0, format="%.1f"),
             "congestion": st.column_config.NumberColumn("congestion β", min_value=0.0, format="%.3f"),
+            "buffer": st.column_config.NumberColumn(
+                "buffer (max backlog)", min_value=0.0, format="%.0f",
+                help="Max backlog before this department pushes back on its upstream. Blank = unbounded.",
+            ),
         },
     )
 with c2:
@@ -358,6 +371,19 @@ with tab_dyn:
         "makespan run away. With adequate staffing the simulation converges to the equilibrium "
         "throughput λ and backlog stays bounded. β=0 departments never congest."
     )
+    bp_on = net.buffer_capacity is not None
+    if bp_on:
+        capped = [net.names[i] for i in range(net.n) if np.isfinite(net.buffer_capacity[i])]
+        st.caption(
+            "**Backpressure active** on " + ", ".join(capped) + ": when a department's backlog "
+            "fills its buffer it throttles its upstream, so the queue propagates upstream (toward "
+            "the root) instead of piling up only at the bottleneck."
+        )
+    else:
+        st.caption(
+            "Set a **buffer (max backlog)** on a department (Departments table) to enable "
+            "backpressure — a full buffer throttles upstream feeders."
+        )
     source = st.radio(
         "Staffing to simulate",
         ["Equilibrium requirement (s*)", "Suggested allocation (S)", "From plan editor"],
@@ -365,9 +391,11 @@ with tab_dyn:
     )
     scale = st.slider("Staffing scale factor", 0.50, 1.50, 1.00, 0.05,
                       help="Scale the chosen staffing to induce a shortage (<1) or surplus (>1).")
-    ctrl1, ctrl2 = st.columns(2)
+    ctrl1, ctrl2, ctrl3 = st.columns(3)
     dt = ctrl1.number_input("Δt (periods per step)", 0.005, 1.0, 0.05, step=0.005, format="%.3f")
     horizon = ctrl2.number_input("Horizon (periods)", 1.0, 300.0, 50.0, step=5.0)
+    band = ctrl3.slider("Backpressure band", 0.05, 0.5, 0.2, 0.05, disabled=not bp_on,
+                        help="Fraction of a buffer's top range over which it throttles upstream.")
 
     if source.startswith("Equilibrium"):
         base_staffing = required
@@ -377,7 +405,7 @@ with tab_dyn:
         base_staffing = actual  # defined in the equilibrium tab above
     sim_staffing = np.asarray(base_staffing, dtype=float) * scale
 
-    result = dyn.simulate(net, sim_staffing, dt=dt, horizon=horizon)
+    result = dyn.simulate(net, sim_staffing, dt=dt, horizon=horizon, backpressure_band=band)
     diverging = dyn.diverging_departments(result)
     if diverging:
         st.warning("Backlog diverging at: " + ", ".join(net.names[i] for i in diverging))

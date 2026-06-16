@@ -57,11 +57,18 @@ def simulate(
     dt: float = 0.05,
     horizon: float = 50.0,
     initial_backlog=None,
+    backpressure_band: float = 0.2,
 ) -> SimulationResult:
     """Simulate backlog evolution for a fixed ``staffing`` vector (employees per department).
 
     ``dt`` and ``horizon`` are in periods (e.g. shifts).  Returns time series of backlog,
     arrival/completion rates and effective makespan.
+
+    If the network sets ``buffer_capacity`` (max backlog per department), **backpressure** is
+    applied: as a department's backlog enters the top ``backpressure_band`` fraction of its
+    buffer, its upstream feeders are throttled, so backlog propagates upstream toward the root
+    instead of piling up only at the bottleneck. Departments with an unbounded (inf) buffer never
+    push back. The throttle only engages near-full, so adequate staffing still converges to ``λ``.
     """
     n = net.n
     staffing = np.asarray(staffing, dtype=float)
@@ -69,6 +76,8 @@ def simulate(
         raise ValueError(f"staffing must have length {n}, got {staffing.shape}")
     if dt <= 0 or horizon <= 0:
         raise ValueError("dt and horizon must be strictly positive")
+    if not 0 < backpressure_band <= 1:
+        raise ValueError("backpressure_band must be in (0, 1]")
 
     beta = net.congestion if net.congestion is not None else np.zeros(n)
     base_m = net.makespan
@@ -76,6 +85,15 @@ def simulate(
     routing = net.routing
     demand = net.demand
     steps = max(1, round(horizon / dt))
+
+    # backpressure setup: which downstream destination each department feeds, and buffer bands
+    buffer = net.buffer_capacity
+    backpressure = buffer is not None and bool(np.any(np.isfinite(buffer)))
+    if buffer is None:
+        buffer = np.full(n, np.inf)
+    finite_buffer = np.isfinite(buffer)
+    band = np.where(finite_buffer, backpressure_band * buffer, np.inf)
+    feeds = routing != 0.0  # feeds[r, i] is True when i sends work to r
 
     backlog = np.zeros(n) if initial_backlog is None else np.asarray(initial_backlog, float).copy()
     prev_completions = np.zeros(n)
@@ -92,6 +110,15 @@ def simulate(
     for k in range(steps):
         m_eff = _effective_makespan(base_m, beta, backlog)
         capacity = cap_const / m_eff                       # units/period a department can clear
+        if backpressure:
+            # room[r] in [0, 1]: 1 with space to spare, 0 when buffer r is full.
+            room = np.ones(n)
+            room[finite_buffer] = np.clip(
+                (buffer[finite_buffer] - backlog[finite_buffer]) / band[finite_buffer], 0.0, 1.0
+            )
+            # a department's throttle is set by its most-constrained downstream destination.
+            throttle = np.where(feeds, room[:, None], 1.0).min(axis=0)
+            capacity = capacity * throttle
         arrivals = demand + routing @ prev_completions      # explicit downstream handoff
         completions = np.minimum(capacity, backlog / dt + arrivals)
         completions = np.maximum(completions, 0.0)

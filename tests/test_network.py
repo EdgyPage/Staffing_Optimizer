@@ -49,3 +49,13 @@ def test_rework_loop_below_one_is_stable():
     net = DepartmentNetwork(["A"], [[0.5]], demand=[1.0], makespan=[1.0])
     assert net.is_stable()
     assert net.spectral_radius() == pytest.approx(0.5)
+
+
+def test_buffer_capacity_must_be_positive():
+    with pytest.raises(ValueError):
+        DepartmentNetwork(["A"], [[0.0]], demand=[1.0], makespan=[1.0], buffer_capacity=[0.0])
+
+
+def test_infinite_buffer_capacity_is_allowed():
+    net = DepartmentNetwork(["A"], [[0.0]], demand=[1.0], makespan=[1.0], buffer_capacity=[np.inf])
+    assert not np.isfinite(net.buffer_capacity[0])

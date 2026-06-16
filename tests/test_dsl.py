@@ -82,3 +82,13 @@ def test_department_order_does_not_matter():
     result = parse_design("Root [makespan=1, demand=10]\nRoot -> Mid : 1.0\nMid [makespan=1]\n")
     assert result.ok
     assert result.network.names == ["Root", "Mid"]
+
+
+def test_buffer_round_trips():
+    text = "A [makespan=1, demand=10, buffer=500]\nA -> B : 1.0\nB [makespan=1, buffer=300]\n"
+    net = parse_design(text).network
+    assert net is not None
+    assert net.buffer_capacity[net.index("A")] == 500
+    assert net.buffer_capacity[net.index("B")] == 300
+    net2 = parse_design(dump_design(net)).network
+    assert np.allclose(net2.buffer_capacity, net.buffer_capacity)

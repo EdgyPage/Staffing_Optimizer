@@ -39,6 +39,12 @@ exponentially growing effective makespan `m_eff = m · exp(β·B)` — the "back
 downstream (Jacobi iteration for `λ`), so with adequate staffing it converges to the equilibrium
 above and backlog stays bounded; under-staff a department and its backlog and makespan run away.
 
+**Backpressure**: give a department a `buffer` (max backlog) and, as its backlog fills that buffer,
+it throttles its upstream feeders — so under overload the queue **propagates upstream** toward the
+root (whose external demand can't be throttled) instead of piling up only at the bottleneck. The
+throttle only engages near-full, so adequate staffing still converges to `λ`. No `buffer` set =
+unbounded (no backpressure).
+
 **SKU-level makespan** (`skus.py`): supply a makespan per SKU per department and SKU demand; each
 SKU's throughput is `(I − P)⁻¹ d_k`, and the volume-weighted effective makespan collapses back to
 a single-makespan network that feeds the same engine unchanged.

@@ -3,11 +3,11 @@ time_per_employee: 480      # T, productive minutes per shift per employee
 headcount: 50               # S, closed pool of employees
 
 departments:
-  - {name: Receiving, makespan: 2.0, demand: 3800, congestion: 0.0}   # root: inbound only
-  - {name: Putaway,   makespan: 1.5, demand: 0,    congestion: 0.02}
-  - {name: Picking,   makespan: 1.0, demand: 0,    congestion: 0.03}
-  - {name: Packing,   makespan: 0.8, demand: 0,    congestion: 0.02}
-  - {name: Shipping,  makespan: 0.5, demand: 0,    congestion: 0.0}    # automated: no congestion
+  - {name: Receiving, makespan: 2.0, demand: 3800, congestion: 0.0}                # root: inbound only
+  - {name: Putaway,   makespan: 1.5, demand: 0,    congestion: 0.02, buffer: 2500}
+  - {name: Picking,   makespan: 1.0, demand: 0,    congestion: 0.03, buffer: 2500}
+  - {name: Packing,   makespan: 0.8, demand: 0,    congestion: 0.02, buffer: 2500}
+  - {name: Shipping,  makespan: 0.5, demand: 0,    congestion: 0.0}                # automated: no congestion
 
 # fraction of FROM's completed output that becomes TO's new work
 routes:

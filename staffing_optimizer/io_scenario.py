@@ -23,6 +23,12 @@ def _from_dict(data: dict) -> DepartmentNetwork:
     makespan = np.array([float(d["makespan"]) for d in depts])
     demand = np.array([float(d.get("demand", 0.0)) for d in depts])
     congestion = np.array([float(d.get("congestion", 0.0)) for d in depts])
+    buffers = [d.get("buffer") for d in depts]
+    buffer_capacity = (
+        np.array([float(b) if b is not None else np.inf for b in buffers])
+        if any(b is not None for b in buffers)
+        else None
+    )
     routing = np.zeros((n, n))
     for route in data.get("routes", []):
         i, j = idx[route["to"]], idx[route["from"]]
@@ -36,6 +42,7 @@ def _from_dict(data: dict) -> DepartmentNetwork:
         time_per_employee=float(data.get("time_per_employee", 1.0)),
         headcount=None if headcount is None else float(headcount),
         congestion=congestion,
+        buffer_capacity=buffer_capacity,
         name=data.get("name"),
     )
 
@@ -57,6 +64,8 @@ def save_scenario(net: DepartmentNetwork, path) -> None:
         entry = {"name": nm, "makespan": float(net.makespan[i]), "demand": float(net.demand[i])}
         if net.congestion is not None:
             entry["congestion"] = float(net.congestion[i])
+        if net.buffer_capacity is not None and np.isfinite(net.buffer_capacity[i]):
+            entry["buffer"] = float(net.buffer_capacity[i])
         depts.append(entry)
     routes = []
     for j in range(net.n):          # j = source department
@@ -94,6 +103,12 @@ def load_scenario_csv(
     makespan = np.array([float(r["makespan"]) for r in nodes])
     demand = np.array([float(r.get("demand") or 0.0) for r in nodes])
     congestion = np.array([float(r.get("congestion") or 0.0) for r in nodes])
+    raw_buffers = [r.get("buffer") for r in nodes]
+    buffer_capacity = (
+        np.array([float(b) if b not in (None, "") else np.inf for b in raw_buffers])
+        if any(b not in (None, "") for b in raw_buffers)
+        else None
+    )
     routing = np.zeros((n, n))
     with open(routes_path, newline="", encoding="utf-8") as fh:
         for r in csv.DictReader(fh):
@@ -106,5 +121,6 @@ def load_scenario_csv(
         time_per_employee=time_per_employee,
         headcount=headcount,
         congestion=congestion,
+        buffer_capacity=buffer_capacity,
         name=name,
     )

@@ -30,7 +30,7 @@ _SETTING_ALIASES = {
     "time_per_employee": "time_per_employee",
     "headcount": "headcount",
 }
-_DEPT_PARAMS = ("makespan", "demand", "congestion")
+_DEPT_PARAMS = ("makespan", "demand", "congestion", "buffer")
 
 _SETTING_RE = re.compile(r"^(?P<key>[A-Za-z_]+)\s*=\s*(?P<value>\S+)\s*$")
 _DEPT_RE = re.compile(r"^(?P<name>.+?)\s*\[(?P<params>.*)\]\s*$")
@@ -167,6 +167,12 @@ def _build_network(names, params, edges, settings, name, diags) -> DepartmentNet
     makespan = np.array([params[nm]["makespan"] for nm in names])
     demand = np.array([params[nm].get("demand", 0.0) for nm in names])
     congestion = np.array([params[nm].get("congestion", 0.0) for nm in names])
+    raw_buffers = [params[nm].get("buffer") for nm in names]
+    buffer_capacity = (
+        np.array([b if b is not None else np.inf for b in raw_buffers])
+        if any(b is not None for b in raw_buffers)
+        else None
+    )
     routing = np.zeros((n, n))
     for src, dst, ratio, _lineno in edges:
         routing[idx[dst], idx[src]] = ratio
@@ -175,7 +181,8 @@ def _build_network(names, params, edges, settings, name, diags) -> DepartmentNet
         return DepartmentNetwork(
             names=names, routing=routing, demand=demand, makespan=makespan,
             time_per_employee=settings.get("time_per_employee", 1.0),
-            headcount=settings.get("headcount"), congestion=congestion, name=name,
+            headcount=settings.get("headcount"), congestion=congestion,
+            buffer_capacity=buffer_capacity, name=name,
         )
     except ValueError as exc:
         message = str(exc)
@@ -203,6 +210,8 @@ def dump_design(net: DepartmentNetwork) -> str:
             parts.append(f"demand={_num(net.demand[i])}")
         if net.congestion is not None and net.congestion[i] != 0:
             parts.append(f"congestion={_num(net.congestion[i])}")
+        if net.buffer_capacity is not None and np.isfinite(net.buffer_capacity[i]):
+            parts.append(f"buffer={_num(net.buffer_capacity[i])}")
         lines.append(f"{nm} [{', '.join(parts)}]")
     lines.append("")
 
