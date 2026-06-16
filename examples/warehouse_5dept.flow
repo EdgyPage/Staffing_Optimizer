@@ -1,0 +1,20 @@
+# Warehouse design — arrow-flow format
+# Lines starting with # are comments.
+
+period_time = 480           # productive minutes per shift per employee (T)
+headcount   = 50            # closed pool of employees (S)
+
+# Departments:  Name [makespan=.., demand=.., congestion=..]
+Receiving [makespan=2.0, demand=3800]      # root: inbound only
+Putaway   [makespan=1.5, congestion=0.02]
+Picking   [makespan=1.0, congestion=0.03]
+Packing   [makespan=0.8, congestion=0.02]
+Shipping  [makespan=0.5]                    # automated: no congestion
+
+# Flows:  FROM -> TO : ratio   (fraction of FROM's output that becomes TO's work)
+Receiving -> Putaway  : 1.0
+Putaway   -> Picking  : 1.0
+Picking   -> Packing  : 1.0
+Packing   -> Shipping : 1.0
+Packing   -> Picking  : 0.10   # rework: short-pick / repack
+Shipping  -> Packing  : 0.05   # rework: re-ship / repack

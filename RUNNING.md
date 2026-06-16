@@ -15,6 +15,7 @@ Install the package and its dependencies (only needed once, or after pulling new
 
 ```powershell
 pip install -e ".[app]"     # app: streamlit, altair, pandas, numpy, pyyaml
+pip install -e ".[viz]"     # optional: matplotlib, networkx (for PNG diagram export)
 pip install -e ".[dev]"     # optional: pytest, ruff (for running tests)
 ```
 
@@ -66,6 +67,22 @@ python solve.py examples/warehouse_5dept.yaml --actual 15,11,10,7,4   # compare 
 ```
 
 `--actual` takes one number per department, in table order.
+
+---
+
+## Validate a design and draw its diagram
+
+Author a system in the arrow-flow format (see `examples/warehouse_5dept.flow`), then:
+
+```powershell
+python design.py examples/warehouse_5dept.flow            # check soundness; write .dot + .mmd
+python design.py examples/warehouse_5dept.flow --image    # also write a .png (needs the viz extra)
+python design.py examples/warehouse_5dept.flow --to-yaml scenario.yaml   # convert to engine YAML
+```
+
+Prints errors/warnings (with line numbers) and a feasibility summary; exits non-zero if unsound.
+The dashboard's **Design & diagram** tab does the same live and can load a sound design into the
+other tabs.
 
 ---
 

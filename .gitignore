@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Generated diagram artifacts (from design.py / the dashboard)
+*.dot
+*.mmd
+examples/*.png

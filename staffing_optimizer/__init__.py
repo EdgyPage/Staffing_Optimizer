@@ -6,6 +6,9 @@ Model a network of departments that send work to each other in fixed ratios, the
 - the **staffing split** that keeps every department balanced (``staffing_split``), and
 - **makespan gaps / staffing shorts** against a closed headcount (``gap_report``).
 """
+from staffing_optimizer.diagnostics import Diagnostic, Severity, diagnose
+from staffing_optimizer.diagram import DiagramModel, render_image, to_dot, to_mermaid
+from staffing_optimizer.dsl import DesignParseResult, dump_design, parse_design
 from staffing_optimizer.dynamics import (
     SimulationResult,
     backlog_slope,
@@ -64,4 +67,14 @@ __all__ = [
     "sku_workload",
     "aggregate_network",
     "SkuWorkload",
+    "parse_design",
+    "dump_design",
+    "DesignParseResult",
+    "diagnose",
+    "Diagnostic",
+    "Severity",
+    "DiagramModel",
+    "to_dot",
+    "to_mermaid",
+    "render_image",
 ]

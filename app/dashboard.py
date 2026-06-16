@@ -20,11 +20,14 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from staffing_optimizer import diagram as dgm  # noqa: E402
+from staffing_optimizer import dsl  # noqa: E402
 from staffing_optimizer import dynamics as dyn  # noqa: E402
 from staffing_optimizer import equilibrium as eq  # noqa: E402
 from staffing_optimizer import gaps as gp  # noqa: E402
 from staffing_optimizer import io_scenario  # noqa: E402
 from staffing_optimizer import skus as sku  # noqa: E402
+from staffing_optimizer.diagnostics import Severity  # noqa: E402
 from staffing_optimizer.network import DepartmentNetwork  # noqa: E402
 
 EXAMPLES = ROOT / "examples"
@@ -172,7 +175,67 @@ split = eq.staffing_split(net)
 feas = gp.feasibility(net, s)
 plan_key = "plan_" + "|".join(net.names)
 
-tab_eq, tab_dyn, tab_sku = st.tabs(["Equilibrium & gaps", "Backlog dynamics", "SKU detail"])
+tab_design, tab_eq, tab_dyn, tab_sku = st.tabs(
+    ["Design & diagram", "Equilibrium & gaps", "Backlog dynamics", "SKU detail"]
+)
+
+# =========================================================== tab 0: design & diagram
+with tab_design:
+    st.subheader("Design the system in text")
+    st.caption(
+        "Author departments and flows in the arrow-flow format, see it checked for soundness and "
+        "drawn live, then load it into the model. Roots are green; rework loops are dashed red."
+    )
+    design_text = st.text_area(
+        "Design (.flow)", value=dsl.dump_design(net), key=f"design_{ver}", height=300
+    )
+    result = dsl.parse_design(design_text, name=net.name or "design")
+
+    errors = [d for d in result.diagnostics if d.severity == Severity.ERROR]
+    warns = [d for d in result.diagnostics if d.severity == Severity.WARNING]
+    infos = [d for d in result.diagnostics if d.severity == Severity.INFO]
+    if errors:
+        st.error("Not mathematically sound — fix these:\n\n" + "\n".join(f"- {d}" for d in errors))
+        if warns:
+            st.warning("\n".join(f"- {d}" for d in warns))
+    elif warns:
+        st.warning("Sound, with warnings:\n\n" + "\n".join(f"- {d}" for d in warns))
+    else:
+        st.success("Design is mathematically sound.")
+    if infos:
+        st.caption("  ·  ".join(d.message for d in infos))
+
+    model = (
+        dgm.DiagramModel.from_network(result.network)
+        if result.network is not None
+        else dgm.DiagramModel.from_parse(result)
+    )
+    st.graphviz_chart(dgm.to_dot(model))
+
+    act_col, dl_col = st.columns([1, 3])
+    with act_col:
+        if st.button(
+            "Load this design",
+            disabled=not (result.ok and result.network is not None),
+            width="stretch",
+        ):
+            load_into_state(result.network)
+            st.rerun()
+    downloads = dl_col.columns(4)
+    downloads[0].download_button(".flow", design_text, file_name="design.flow", width="stretch")
+    downloads[1].download_button(".dot", dgm.to_dot(model), file_name="design.dot", width="stretch")
+    downloads[2].download_button(".mmd", dgm.to_mermaid(model), file_name="design.mmd", width="stretch")
+    try:
+        import io as _io
+
+        _buf = _io.BytesIO()
+        dgm.render_image(model, _buf, fmt="png")
+        _buf.seek(0)
+        downloads[3].download_button(
+            ".png", _buf, file_name="design.png", mime="image/png", width="stretch"
+        )
+    except RuntimeError:
+        downloads[3].caption("PNG: install viz extra")
 
 # =========================================================== tab 1: equilibrium & gaps
 with tab_eq:

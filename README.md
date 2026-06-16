@@ -66,6 +66,25 @@ Interactive dashboard (edit ratios/demand/headcount and watch the split and gaps
 streamlit run app/dashboard.py
 ```
 
+## Design interface (author → validate → diagram)
+
+For stakeholders to "draw in" a system as plain text, validate its math soundness, and see it
+drawn before simulating. Author an arrow-flow `.flow` file (department blocks + `A -> B : ratio`
+lines — see [examples/warehouse_5dept.flow](examples/warehouse_5dept.flow)), then:
+
+```bash
+python design.py examples/warehouse_5dept.flow            # report soundness, write .dot + .mmd
+python design.py examples/warehouse_5dept.flow --image    # also render a PNG (needs the viz extra)
+python design.py examples/warehouse_5dept.flow --to-yaml scenario.yaml   # convert to engine YAML
+```
+
+The report lists line-referenced **errors** (missing makespan, undefined department, unstable
+rework loop), **warnings** (no root, unreachable department, demand on a non-root) and an **info**
+feasibility summary; exit code is 1 if anything is unsound. The diagram is a left-to-right
+block-and-arrow graph — roots highlighted, rework loops dashed/red, nodes labeled with
+makespan/demand/throughput. The dashboard's **Design & diagram** tab does the same live (Graphviz,
+no install) and loads a sound design into the other tabs.
+
 As a library:
 
 ```python
@@ -82,9 +101,13 @@ rows = gap_report(net, actual=[15, 11, 10, 7, 4])  # per-dept SHORT / OK / SLACK
 ```
 staffing_optimizer/   network · equilibrium · gaps · report · io_scenario   (core, numpy only)
                       dynamics (backlog simulation) · skus (SKU makespan lookup)
-app/dashboard.py      Streamlit dashboard: Equilibrium & gaps / Backlog dynamics / SKU detail tabs
-examples/             sample scenarios (YAML: node table + routing edge list)
-solve.py              headless report entry point
+                      dsl (arrow-flow format) · diagnostics (soundness) · diagram (DOT/Mermaid/PNG)
+app/dashboard.py      Streamlit dashboard: Design & diagram / Equilibrium & gaps / Dynamics / SKU tabs
+examples/             sample scenarios (.yaml node/edge tables; .flow arrow-flow design)
+solve.py              headless equilibrium report   ·   design.py  validate + diagram a design
 tests/                math checks (chain, analytic inverse, basis linearity, rework series,
-                      dynamics convergence/divergence, SKU effective makespan)
+                      dynamics convergence/divergence, SKU makespan, DSL/diagnostics/diagram)
 ```
+
+The `viz` extra (`pip install -e ".[viz]"`, matplotlib + networkx) is only needed for PNG export;
+the in-app diagram and the DOT/Mermaid text exports need nothing beyond the core.
