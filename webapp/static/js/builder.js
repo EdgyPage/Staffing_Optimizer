@@ -7,28 +7,18 @@ const UNITS_KEY = 'staffing:builder:units';
 function builderStyle() {
   const style = cyStyle();
   style.find(r => r.selector === 'edge').style['label'] = 'data(label)';  // formatted % / ratio
+  // transient "guide" element shown while dragging a new link (events:no so it never blocks the drop target)
+  style.push({ selector: '.ghost', style: { 'events': 'no', 'opacity': 0.55, 'label': '' } });
+  style.push({ selector: 'node.ghost', style: { 'width': 8, 'height': 8, 'background-color': '#1f77b4', 'border-width': 0 } });
+  style.push({ selector: 'edge.ghost', style: { 'line-color': '#1f77b4', 'line-style': 'dashed', 'target-arrow-color': '#1f77b4' } });
   return style;
 }
-
-// Register the edgehandles extension (needs the lodash global loaded before this script).
-// Guarded so a missing/broken extension can never halt the rest of the builder.
-try {
-  if (window.cytoscapeEdgehandles) cytoscape.use(window.cytoscapeEdgehandles);
-} catch (e) { console.warn('edgehandles not registered:', e); }
 
 const cy = cytoscape({
   container: document.getElementById('cy'),
   style: builderStyle(),
   wheelSensitivity: 0.2, minZoom: 0.2, maxZoom: 2.5,
 });
-
-if (typeof cy.edgehandles === 'function') {
-  try {
-    cy.edgehandles({ snap: true, snapThreshold: 18, hoverDelay: 100, edgeParams: () => ({ data: { ratio: 1 } }) });
-  } catch (e) { console.error('edgehandles init failed:', e); }
-} else {
-  console.warn('drag-to-connect unavailable; use is still possible once edgehandles loads');
-}
 
 const el = (x) => document.getElementById(x);
 const tInput = el('set-t'), sInput = el('set-s'), nameInput = el('design-name');
@@ -70,13 +60,51 @@ function addDept() {
   commit();
 }
 
-cy.on('ehcomplete', (evt, source, target, added) => {
-  const dup = cy.edges().filter(e => e.id() !== added.id()
-    && e.source().id() === source.id() && e.target().id() === target.id());
-  if (dup.length) { added.remove(); cy.$(':selected').unselect(); dup.select(); return; }
-  added.data('ratio', 1); setEdgeLabel(added); added.select();
-  commit();
-});
+// ---- drag-to-connect (dependency-free): toggle Connect + left-drag, or right-drag any time ----
+let connectMode = false;
+let pending = null;
+
+function setConnectMode(on) {
+  connectMode = on;
+  const btn = el('connect-mode');
+  btn.classList.toggle('active', on);
+  btn.textContent = on ? '✓ Connecting' : 'Connect';
+  cy.autoungrabify(on);          // in connect mode, drags draw links instead of moving nodes
+  cy.userPanningEnabled(!on);
+  el('cy').style.cursor = on ? 'crosshair' : '';
+  cancelConnect();
+}
+function cancelConnect() { if (pending) { pending.coll.remove(); pending = null; } }
+function beginConnect(node, pos) {
+  cancelConnect();
+  const coll = cy.add([
+    { group: 'nodes', data: { id: '__ghost' }, position: { x: pos.x, y: pos.y }, classes: 'ghost' },
+    { group: 'edges', data: { id: '__ge', source: node.id(), target: '__ghost' }, classes: 'ghost' },
+  ]);
+  pending = { source: node, node: coll.nodes(), coll };
+}
+function moveGhost(pos) { if (pending) pending.node.position(pos); }
+function endConnect(target) {
+  if (!pending) return;
+  const source = pending.source;
+  cancelConnect();
+  if (!target || target === cy || typeof target.isNode !== 'function' || !target.isNode()
+      || target.hasClass('ghost') || target.id() === source.id()) return;
+  const same = (e) => e.source().id() === source.id() && e.target().id() === target.id();
+  const dup = cy.edges().filter(e => !e.hasClass('ghost') && same(e));
+  if (dup.nonempty()) { cy.$(':selected').unselect(); dup.select(); return; }
+  const e = cy.add({ group: 'edges', data: { id: 'e' + (++counter), source: source.id(), target: target.id(), ratio: 1 } });
+  setEdgeLabel(e); cy.$(':selected').unselect(); e.select(); commit();
+}
+
+el('connect-mode').onclick = () => setConnectMode(!connectMode);
+cy.on('tapstart', 'node', (evt) => { if (connectMode && !evt.target.hasClass('ghost')) beginConnect(evt.target, evt.position); });
+cy.on('tapdrag', (evt) => moveGhost(evt.position));
+cy.on('tapend', (evt) => { if (pending) endConnect(evt.target); });
+cy.on('cxttapstart', 'node', (evt) => { if (!evt.target.hasClass('ghost')) beginConnect(evt.target, evt.position); });
+cy.on('cxtdrag', (evt) => moveGhost(evt.position));
+cy.on('cxttapend', (evt) => { if (pending) endConnect(evt.target); });
+document.getElementById('cy').addEventListener('contextmenu', (e) => e.preventDefault());
 
 el('add-dept').onclick = addDept;
 el('delete-sel').onclick = () => { if (cy.$(':selected').length) { cy.$(':selected').remove(); clearInspector(); commit(); } };
@@ -136,12 +164,13 @@ cy.on('dragfree', 'node', commit);
 
 // ---------------------------------------------------------------- doc <-> canvas
 function buildDoc() {
-  const departments = cy.nodes().map(n => {
+  const departments = cy.nodes().filter(n => !n.hasClass('ghost')).map(n => {
     const d = n.data(), p = n.position();
     return { name: d.name, makespan: num(d.makespan), demand: num(d.demand), congestion: num(d.congestion),
       buffer: (d.buffer === '' || d.buffer == null) ? null : num(d.buffer), x: Math.round(p.x), y: Math.round(p.y) };
   });
-  const flows = cy.edges().map(e => ({ from: e.source().data('name'), to: e.target().data('name'), ratio: num(e.data('ratio')) }));
+  const flows = cy.edges().filter(e => !e.hasClass('ghost'))
+    .map(e => ({ from: e.source().data('name'), to: e.target().data('name'), ratio: num(e.data('ratio')) }));
   return { name: nameInput.value || 'design',
     settings: { time_per_employee: num(tInput.value), headcount: sInput.value === '' ? null : num(sInput.value) },
     departments, flows };

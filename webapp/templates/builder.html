@@ -2,8 +2,6 @@
 {% block title %}Builder · Staffing Optimizer{% endblock %}
 {% block head %}
 <script src="/static/vendor/cytoscape.min.js"></script>
-<script src="/static/vendor/lodash.min.js"></script>
-<script src="/static/vendor/cytoscape-edgehandles.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="builder">
@@ -21,11 +19,13 @@
 
     <div class="btnrow">
       <button id="add-dept">+ Department</button>
+      <button id="connect-mode" title="Toggle on, then drag node → node">Connect</button>
       <button id="delete-sel">Delete</button>
       <button id="undo" title="Ctrl+Z" disabled>↶ Undo</button>
       <button id="redo" title="Ctrl+Y" disabled>↷ Redo</button>
     </div>
-    <p class="muted hint">Drag from the edge of one department to another to link them.</p>
+    <p class="muted hint">To link: click <b>Connect</b>, then drag one department onto another
+      (or <b>right-drag</b> a node onto another any time). Toggle Connect off to move nodes.</p>
     <div id="draft-note"></div>
 
     <hr>
