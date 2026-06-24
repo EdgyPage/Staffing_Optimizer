@@ -1,5 +1,10 @@
 """Streamlit dashboard for the warehouse staffing equilibrium optimizer.
 
+.. deprecated::
+    Superseded by the FastAPI web app in ``webapp/`` (run ``python -m webapp``), which adds a
+    visual builder, saved/transferable designs, and interactive time-step simulation. This
+    dashboard is kept for reference but is no longer the primary front end.
+
 Edit departments, routing ratios, demand and headcount, and explore three views live:
 equilibrium staffing & gaps, the time-stepped backlog dynamics, and SKU-level makespan.
 

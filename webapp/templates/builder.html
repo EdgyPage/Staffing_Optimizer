@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Builder · Staffing Optimizer{% endblock %}
+{% block head %}<script src="/static/vendor/cytoscape.min.js"></script>{% endblock %}
+{% block content %}
+<div class="builder">
+  <div class="panel sidebar">
+    <h2>System</h2>
+    <label>Name <input id="design-name" type="text" placeholder="my-warehouse"></label>
+    <label>Time per employee (T) <input id="set-t" type="number" step="any" value="480"></label>
+    <label>Headcount (S) <input id="set-s" type="number" step="any" value="50"></label>
+
+    <div class="btnrow">
+      <button id="add-dept">+ Department</button>
+      <button id="link-mode" title="Click, then click a source node, then a target node">Link flow</button>
+      <button id="delete-sel">Delete selected</button>
+    </div>
+    <hr>
+    <h3>Inspector</h3>
+    <div id="inspector"><p class="muted">Select a node or edge to edit its parameters.</p></div>
+    <hr>
+    <div class="btnrow">
+      <button id="validate-btn">Validate</button>
+      <button id="save-btn" class="primary">Save</button>
+    </div>
+    <div id="save-msg" class="muted"></div>
+    <div id="diagnostics"></div>
+  </div>
+  <div id="cy" class="canvas"></div>
+</div>
+<script>window.DESIGN_ID = {{ design_id|tojson }};</script>
+{% endblock %}
+{% block scripts %}<script src="/static/js/builder.js"></script>{% endblock %}

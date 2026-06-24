@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Simulate · Staffing Optimizer{% endblock %}
+{% block head %}
+<script src="/static/vendor/cytoscape.min.js"></script>
+<script src="/static/vendor/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1 id="title">Simulate</h1>
+  <a href="/designs">← designs</a>
+  <a id="analyze-link" href="#">Analyze →</a>
+</div>
+<div id="invalid" class="diag error" style="display:none"></div>
+
+<div class="controls">
+  <div><label>Staffing</label>
+    <select id="staffing">
+      <option value="requirement">Equilibrium (s*)</option>
+      <option value="suggested">Suggested (S)</option>
+    </select></div>
+  <div><label>Scale</label><input id="scale" type="number" step="0.05" value="1.0"></div>
+  <div><label>Δt (periods)</label><input id="dt" type="number" step="0.005" value="0.05"></div>
+  <div><label>Horizon</label><input id="horizon" type="number" step="5" value="50"></div>
+  <div><label>Backpressure band</label><input id="band" type="number" step="0.05" value="0.2"></div>
+  <button id="run" class="primary">Run</button>
+</div>
+<div id="status" class="muted"></div>
+
+<div class="transport">
+  <button id="step-back" title="Step back">⏮</button>
+  <button id="play">▶ Play</button>
+  <button id="step-fwd" title="Step forward">⏭</button>
+  <input id="cursor" type="range" min="0" max="0" value="0">
+  <span id="tlabel" class="muted"></span>
+</div>
+
+<div class="sim">
+  <div class="panel"><div id="cy" style="height:440px"></div></div>
+  <div class="panel">
+    <canvas id="backlog-chart" height="190"></canvas>
+    <canvas id="makespan-chart" height="190"></canvas>
+  </div>
+</div>
+<script>window.DESIGN_ID = {{ design_id|tojson }};</script>
+{% endblock %}
+{% block scripts %}<script src="/static/js/simulate.js"></script>{% endblock %}

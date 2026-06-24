@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Saved designs · Staffing Optimizer{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Saved designs</h1>
+  <label class="muted" style="margin-left:auto">Import a system&nbsp;
+    <input id="import-file" type="file" accept=".json,.flow,.yaml,.yml" style="width:auto;display:inline-block">
+  </label>
+</div>
+<table id="designs-table">
+  <thead><tr><th>Name</th><th>Created</th><th>Status</th><th>Actions</th></tr></thead>
+  <tbody></tbody>
+</table>
+{% endblock %}
+{% block scripts %}<script src="/static/js/designs.js"></script>{% endblock %}

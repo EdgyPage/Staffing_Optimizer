@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Analyze · Staffing Optimizer{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1 id="title">Analysis</h1>
+  <a href="/designs">← designs</a>
+  <a id="sim-link" href="#">Simulate →</a>
+</div>
+<div id="invalid" class="diag error" style="display:none"></div>
+<div class="cards" id="cards"></div>
+
+<h2>Staffing split &amp; gaps</h2>
+<table id="gaps">
+  <thead><tr><th>Department</th><th>Throughput λ</th><th>Required FTE</th><th>Split %</th>
+    <th>Suggested FTE</th><th>Gap</th><th>Status</th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<h2 style="margin-top:18px">Basis vectors <span class="muted">(FTE per unit demand at a root)</span></h2>
+<table id="basis"></table>
+<script>window.DESIGN_ID = {{ design_id|tojson }};</script>
+{% endblock %}
+{% block scripts %}<script src="/static/js/analyze.js"></script>{% endblock %}

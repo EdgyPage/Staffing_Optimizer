@@ -221,3 +221,6 @@ __marimo__/
 *.dot
 *.mmd
 examples/*.png
+
+# Saved designs created by the web app (user data)
+designs/

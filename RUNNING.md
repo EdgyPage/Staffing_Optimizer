@@ -14,47 +14,48 @@ cd C:\Users\myfir\Repos\Git\Staffing_Optimizer
 Install the package and its dependencies (only needed once, or after pulling new deps):
 
 ```powershell
-pip install -e ".[app]"     # app: streamlit, altair, pandas, numpy, pyyaml
+pip install -e ".[web]"     # the web app: fastapi, uvicorn, jinja2 (+ numpy, pyyaml)
 pip install -e ".[viz]"     # optional: matplotlib, networkx (for PNG diagram export)
-pip install -e ".[dev]"     # optional: pytest, ruff (for running tests)
+pip install -e ".[dev]"     # optional: pytest, ruff, httpx (for running tests)
 ```
 
 ---
 
-## The dashboard (interactive web app)
+## The web app (primary)
 
 ### Start it
 
 ```powershell
-streamlit run app/dashboard.py
+python -m webapp
 ```
 
-- Your browser opens automatically at **http://localhost:8501**.
-- On the very first run Streamlit may ask for an email — just press **Enter** to skip.
-- This terminal is now "busy" running the server; leave it open while you use the app.
+- Open **http://localhost:8000** in your browser (Builder is the home page).
+- This terminal is now running the server; leave it open while you use the app.
 
 ### Stop it
 
-- Click in the terminal running it and press **Ctrl + C**.
-- Then close the browser tab.
+- Click in the terminal and press **Ctrl + C**.
 
-### Run it without tying up a terminal (optional)
-
-```powershell
-streamlit run app/dashboard.py --server.headless true
-```
-
-`--server.headless true` skips the auto-open browser and the email prompt. Open
-**http://localhost:8501** yourself. To stop it later, kill whatever is using the port:
+### Free the port if it's stuck (port 8000)
 
 ```powershell
-Get-NetTCPConnection -LocalPort 8501 -State Listen |
+Get-NetTCPConnection -LocalPort 8000 -State Listen |
   Select-Object -Expand OwningProcess |
   ForEach-Object { Stop-Process -Id $_ -Force }
 ```
 
-(If the port was busy when starting, Streamlit picks the next one — 8502, 8503, … — and
-prints the actual URL in the terminal. Change `-LocalPort` to match when stopping.)
+Saved designs live in the `designs/` folder as timestamped `.json` files; export/import from the
+**Saved designs** page to move a system between machines.
+
+---
+
+## The Streamlit dashboard (deprecated)
+
+Superseded by the web app above; kept for reference. Needs `pip install -e ".[app]"`.
+
+```powershell
+streamlit run app/dashboard.py        # http://localhost:8501, Ctrl + C to stop
+```
 
 ---
 
