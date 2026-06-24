@@ -26,6 +26,7 @@ from staffing_optimizer.diagnostics import (
     back_edges,
     diagnose,
     find_cycle,
+    reachable_from_edges,
 )
 from staffing_optimizer.dsl import dump_design, parse_design
 from staffing_optimizer.dynamics import SimulationResult
@@ -178,19 +179,57 @@ def graph_json(doc: dict) -> dict:
             edges_idx.append((idx[src], idx[dst]))
             has_inbound.add(idx[dst])
     roots = [i for i in range(n) if i not in has_inbound]
+    roots_set = set(roots)
     backs = back_edges(n, edges_idx, _roots_first(n, roots))
+
+    # "gets work" = reachable from any department that has demand (the true entry points),
+    # plus each department's total outflow — both drive the live builder status.
+    reach = reachable_from_edges(n, edges_idx)
+    sources = [i for i in range(n) if float(depts[i].get("demand") or 0) > 0]
+    gets_work = set(sources)
+    for s in sources:
+        gets_work.update(int(k) for k in reach[s].nonzero()[0])
+    has_sources = bool(sources)
+    outflow: dict[str, float] = {}
+    for flow in doc.get("flows") or []:
+        src = flow.get("from")
+        if src in idx:
+            outflow[src] = outflow.get(src, 0.0) + float(flow.get("ratio") or 0.0)
 
     nodes = []
     for i, d in enumerate(depts):
+        name = d.get("name")
+        demand = float(d.get("demand") or 0)
+        of = outflow.get(name, 0.0)
+        is_root = i in roots_set
+        is_reachable = (i in gets_work) if has_sources else True
+        notes, status = [], "ok"
+        if is_root:
+            notes.append("root")
+            if demand == 0:
+                notes.append("no demand")
+                status = "warn"
+        if has_sources and i not in gets_work:
+            notes.append("no inbound work")
+            status = "warn"
+        if i not in has_inbound and of == 0 and demand == 0:
+            notes.append("isolated")
+            status = "warn"
+        if of > 1.0 + 1e-9:
+            notes.append(f"fan-out {round(of * 100)}%")
         nodes.append({
-            "id": d.get("name"),
+            "id": name,
             "makespan": d.get("makespan"),
-            "demand": d.get("demand") or 0,
+            "demand": demand,
             "congestion": d.get("congestion") or 0,
             "buffer": d.get("buffer"),
             "x": d.get("x"),
             "y": d.get("y"),
-            "is_root": i in roots,
+            "is_root": is_root,
+            "reachable": is_reachable,
+            "outflow": of,
+            "status": status,
+            "notes": notes,
         })
     edges = []
     for flow in doc.get("flows") or []:

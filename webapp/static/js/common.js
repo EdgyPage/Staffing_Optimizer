@@ -16,6 +16,18 @@ async function api(method, url, body) {
 
 function num(v) { const n = parseFloat(v); return Number.isNaN(n) ? 0 : n; }
 
+function round3(v) { return Math.round(v * 1000) / 1000; }
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+// Format a stored ratio (0..1) for display in the current units.
+function ratioLabel(ratio, units) {
+  return units === 'percent' ? Math.round(ratio * 100) + '%' : String(round3(ratio));
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }

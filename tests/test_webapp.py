@@ -79,6 +79,38 @@ def test_analysis(client):
     assert client.get(f"/api/analysis/{_new(client, FAULTY)}").status_code == 422
 
 
+def test_graph_nodes_carry_status(client):
+    graph = client.post("/api/validate", json=SOUND).json()["graph"]
+    by = {nd["id"]: nd for nd in graph["nodes"]}
+    assert by["A"]["is_root"] is True and by["A"]["reachable"] is True
+    assert by["A"]["outflow"] == 1.0
+    assert all({"status", "outflow", "reachable"} <= set(nd) for nd in graph["nodes"])
+
+
+def test_reciprocal_cycle_is_valid_with_two_edges(client):
+    doc = {
+        "name": "cycle", "settings": {"time_per_employee": 1, "headcount": 10},
+        "departments": [{"name": "A", "makespan": 1, "demand": 100}, {"name": "B", "makespan": 1}],
+        "flows": [{"from": "A", "to": "B", "ratio": 0.9}, {"from": "B", "to": "A", "ratio": 0.4}],
+    }
+    r = client.post("/api/validate", json=doc).json()
+    assert r["ok"] is True
+    assert len(r["graph"]["edges"]) == 2
+
+
+def test_unreachable_department_flagged_in_graph(client):
+    doc = {
+        "name": "split", "settings": {"time_per_employee": 1},
+        "departments": [{"name": n, "makespan": 1} for n in ("A", "B", "C", "D")],
+        "flows": [{"from": "A", "to": "B", "ratio": 1.0},
+                  {"from": "C", "to": "D", "ratio": 0.5}, {"from": "D", "to": "C", "ratio": 0.5}],
+    }
+    doc["departments"][0]["demand"] = 10
+    by = {nd["id"]: nd for nd in client.post("/api/validate", json=doc).json()["graph"]["nodes"]}
+    assert by["C"]["reachable"] is False and by["C"]["status"] == "warn"
+    assert by["A"]["reachable"] is True
+
+
 def test_pages_render(client):
     for path in ["/", "/builder", "/designs"]:
         assert client.get(path).status_code == 200
