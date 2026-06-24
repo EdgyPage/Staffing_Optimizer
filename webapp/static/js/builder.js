@@ -10,13 +10,25 @@ function builderStyle() {
   return style;
 }
 
+// Register the edgehandles extension (needs the lodash global loaded before this script).
+// Guarded so a missing/broken extension can never halt the rest of the builder.
+try {
+  if (window.cytoscapeEdgehandles) cytoscape.use(window.cytoscapeEdgehandles);
+} catch (e) { console.warn('edgehandles not registered:', e); }
+
 const cy = cytoscape({
   container: document.getElementById('cy'),
   style: builderStyle(),
   wheelSensitivity: 0.2, minZoom: 0.2, maxZoom: 2.5,
 });
-const eh = cy.edgehandles({ snap: true, snapThreshold: 18, hoverDelay: 100,
-  edgeParams: () => ({ data: { ratio: 1 } }) });
+
+if (typeof cy.edgehandles === 'function') {
+  try {
+    cy.edgehandles({ snap: true, snapThreshold: 18, hoverDelay: 100, edgeParams: () => ({ data: { ratio: 1 } }) });
+  } catch (e) { console.error('edgehandles init failed:', e); }
+} else {
+  console.warn('drag-to-connect unavailable; use is still possible once edgehandles loads');
+}
 
 const el = (x) => document.getElementById(x);
 const tInput = el('set-t'), sInput = el('set-s'), nameInput = el('design-name');
