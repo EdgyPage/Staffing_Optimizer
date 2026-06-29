@@ -1,0 +1,18 @@
+{
+  "name": "Linear warehouse",
+  "description": "A simple end-to-end line: each stage passes all of its work to the next. The cleanest illustration of the workflow — set a makespan per stage and the demand into Receiving, then read the steady-state staffing per stage on the Analyze page.",
+  "settings": { "time_per_employee": 480, "headcount": 26 },
+  "departments": [
+    { "name": "Receiving", "makespan": 2.0, "demand": 2000 },
+    { "name": "Putaway", "makespan": 1.5, "demand": 0 },
+    { "name": "Picking", "makespan": 1.0, "demand": 0 },
+    { "name": "Packing", "makespan": 0.8, "demand": 0 },
+    { "name": "Shipping", "makespan": 0.5, "demand": 0 }
+  ],
+  "flows": [
+    { "from": "Receiving", "to": "Putaway", "ratio": 1.0 },
+    { "from": "Putaway", "to": "Picking", "ratio": 1.0 },
+    { "from": "Picking", "to": "Packing", "ratio": 1.0 },
+    { "from": "Packing", "to": "Shipping", "ratio": 1.0 }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Rework loop",
+  "description": "Packing sends 10% of its work back to Picking (rework / short-picks). Loops are allowed as long as they drain — 10% back is fine (it eventually exits), but 100% back would never drain and is rejected. Notice Picking and Packing now need more staff because they handle the extra passes. Try changing the 10%.",
+  "settings": { "time_per_employee": 480, "headcount": 28 },
+  "departments": [
+    { "name": "Receiving", "makespan": 2.0, "demand": 2000 },
+    { "name": "Putaway", "makespan": 1.5, "demand": 0, "congestion": 0.02 },
+    { "name": "Picking", "makespan": 1.0, "demand": 0, "congestion": 0.03 },
+    { "name": "Packing", "makespan": 0.8, "demand": 0, "congestion": 0.02 },
+    { "name": "Shipping", "makespan": 0.5, "demand": 0 }
+  ],
+  "flows": [
+    { "from": "Receiving", "to": "Putaway", "ratio": 1.0 },
+    { "from": "Putaway", "to": "Picking", "ratio": 1.0 },
+    { "from": "Picking", "to": "Packing", "ratio": 1.0 },
+    { "from": "Packing", "to": "Shipping", "ratio": 1.0 },
+    { "from": "Packing", "to": "Picking", "ratio": 0.1 }
+  ]
+}

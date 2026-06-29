@@ -1,18 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Analyze · Staffing Optimizer{% endblock %}
+{% block title %}Steady-state staffing · Staffing Optimizer{% endblock %}
 {% block content %}
 <div class="pagehead">
-  <h1 id="title">Analysis</h1>
+  <h1 id="title">Steady-state staffing</h1>
   <a href="/designs">← designs</a>
   <a id="sim-link" href="#">Simulate →</a>
+  <a href="/help">Help</a>
 </div>
 <div id="invalid" class="diag error" style="display:none"></div>
 <div class="cards" id="cards"></div>
 
-<h2>Staffing split &amp; gaps</h2>
+<h2>Staffing per department <span class="muted">(to hold equilibrium)</span></h2>
 <table id="gaps">
   <thead><tr><th>Department</th><th>Throughput λ</th><th>Required FTE</th><th>Split %</th>
     <th>Suggested FTE</th><th>Gap</th><th>Status</th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<h2 style="margin-top:18px">Capacity at a given staffing
+  <span class="muted">(throughput each department can clear — edit staffing to explore)</span></h2>
+<p class="muted" id="bottleneck"></p>
+<table id="capacity">
+  <thead><tr><th>Department</th><th>Staffing (FTE)</th><th>Capacity (u/period)</th>
+    <th>Required λ</th><th>Utilization</th><th>Status</th></tr></thead>
   <tbody></tbody>
 </table>
 

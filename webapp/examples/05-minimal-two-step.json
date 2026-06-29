@@ -1,0 +1,12 @@
+{
+  "name": "Minimal two-step",
+  "description": "The simplest possible system: Intake -> Shipping, with 100% of work passing through. Start here to see the three inputs that matter — makespan (time per unit per person), demand into the root, and headcount — and the steady-state staffing they imply.",
+  "settings": { "time_per_employee": 480, "headcount": 6 },
+  "departments": [
+    { "name": "Intake", "makespan": 3.0, "demand": 500 },
+    { "name": "Shipping", "makespan": 1.0, "demand": 0 }
+  ],
+  "flows": [
+    { "from": "Intake", "to": "Shipping", "ratio": 1.0 }
+  ]
+}

@@ -16,9 +16,23 @@ from staffing_optimizer import dynamics as dyn
 from staffing_optimizer import equilibrium as eq
 from staffing_optimizer import gaps as gp
 from webapp import adapters as A
+from webapp import examples_lib
 from webapp import store
 
 router = APIRouter(prefix="/api")
+
+
+@router.get("/examples")
+def examples_index():
+    return examples_lib.list_examples()
+
+
+@router.get("/examples/{example_id}")
+def example_get(example_id: str):
+    doc = examples_lib.load_example(example_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="example not found")
+    return doc
 
 
 def _download_headers(filename: str) -> dict:

@@ -111,8 +111,30 @@ def test_unreachable_department_flagged_in_graph(client):
     assert by["A"]["reachable"] is True
 
 
+def test_examples_listed_and_loadable(client):
+    items = client.get("/api/examples").json()
+    assert len(items) >= 3
+    assert all({"id", "name", "description"} <= set(it) for it in items)
+    doc = client.get(f"/api/examples/{items[0]['id']}").json()
+    assert "departments" in doc and "flows" in doc
+    assert client.get("/api/examples/nope").status_code == 404
+
+
+def test_every_bundled_example_validates(client):
+    for it in client.get("/api/examples").json():
+        doc = client.get(f"/api/examples/{it['id']}").json()
+        r = client.post("/api/validate", json=doc).json()
+        assert r["ok"] is True, f"{it['id']} did not validate: {r['diagnostics']}"
+
+
+def test_analysis_includes_capacity_fields(client):
+    a = client.get(f"/api/analysis/{_new(client, SOUND)}").json()
+    assert "makespan" in a and "time_per_employee" in a
+    assert len(a["makespan"]) == len(a["names"])
+
+
 def test_pages_render(client):
-    for path in ["/", "/builder", "/designs"]:
+    for path in ["/", "/builder", "/designs", "/examples", "/help"]:
         assert client.get(path).status_code == 200
     design_id = _new(client, SOUND)
     for path in [f"/builder/{design_id}", f"/simulate/{design_id}", f"/analyze/{design_id}"]:

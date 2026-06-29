@@ -1,0 +1,23 @@
+{
+  "name": "Branch & merge (two intake streams)",
+  "description": "Two intake streams — Receiving and Returns — merge at Sortation, then Picking splits into standard and fragile packing before both rejoin at Shipping. Shows multiple demand sources (two roots) and branching transfer ratios that sum to 100% out of Picking (70% standard, 30% fragile).",
+  "settings": { "time_per_employee": 480, "headcount": 20 },
+  "departments": [
+    { "name": "Receiving", "makespan": 2.0, "demand": 1500 },
+    { "name": "Returns", "makespan": 1.5, "demand": 300 },
+    { "name": "Sortation", "makespan": 0.5, "demand": 0 },
+    { "name": "Picking", "makespan": 1.0, "demand": 0 },
+    { "name": "Pack-Standard", "makespan": 0.8, "demand": 0 },
+    { "name": "Pack-Fragile", "makespan": 1.2, "demand": 0 },
+    { "name": "Shipping", "makespan": 0.4, "demand": 0 }
+  ],
+  "flows": [
+    { "from": "Receiving", "to": "Sortation", "ratio": 1.0 },
+    { "from": "Returns", "to": "Sortation", "ratio": 1.0 },
+    { "from": "Sortation", "to": "Picking", "ratio": 1.0 },
+    { "from": "Picking", "to": "Pack-Standard", "ratio": 0.7 },
+    { "from": "Picking", "to": "Pack-Fragile", "ratio": 0.3 },
+    { "from": "Pack-Standard", "to": "Shipping", "ratio": 1.0 },
+    { "from": "Pack-Fragile", "to": "Shipping", "ratio": 1.0 }
+  ]
+}

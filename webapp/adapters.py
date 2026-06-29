@@ -255,6 +255,8 @@ def analysis_json(net: DepartmentNetwork) -> dict:
         "required_fte": [float(x) for x in required],
         "split": [float(x) for x in split],
         "suggested": [float(x) for x in suggested],
+        "makespan": [float(x) for x in net.makespan],
+        "time_per_employee": float(net.time_per_employee),
         "feasibility": {
             "required_fte": feas["required_fte"],
             "headcount": feas["headcount"],

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Help · Staffing Optimizer{% endblock %}
+{% block content %}
+<div class="help">
+  <h1>How this works</h1>
+  <p>You describe departments and how work flows between them; the app computes the
+  <b>steady-state staffing</b> — how many people each department needs so nothing backs up.</p>
+
+  <h2>The workflow</h2>
+  <ol>
+    <li><b>Build</b> a network in the Builder: add departments, then drag node&nbsp;&rarr;&nbsp;node
+      (or right-drag) to link them.</li>
+    <li>Give each department a <b>makespan</b>; set the <b>demand</b> entering the root and the
+      <b>headcount</b>.</li>
+    <li><b>Validate</b> (the builder flags problems live and shows a status per department), then
+      <b>Save</b>.</li>
+    <li><b>Analyze</b> to read the steady-state staffing, or <b>Simulate</b> to watch backlog over time.</li>
+  </ol>
+
+  <h2>The rules</h2>
+  <ul>
+    <li><b>Makespan</b> — time to process one unit, per person (e.g. minutes/unit). Must be &gt; 0.</li>
+    <li><b>Transfer ratio</b> — the fraction (or %) of a department's output sent to another. The
+      ratios leaving a department can sum to under 100% (the rest exits the system) or over 100%
+      (fan-out / work multiplication).</li>
+    <li><b>Root &amp; demand</b> — a <i>root</i> has no inbound flow; that's where outside
+      <b>demand</b> enters (e.g. inbound trucks). Work has to enter somewhere.</li>
+    <li><b>Loops must drain</b> — rework is fine (e.g. 90% forward, 40% back) as long as work
+      eventually leaves. A loop that never drains (e.g. 100% each way) is rejected as unstable.</li>
+    <li><b>Headcount (S)</b> and <b>time per employee (T)</b> — the closed pool of people, and the
+      productive time each supplies per period (e.g. 480 min/shift).</li>
+    <li><b>Congestion β</b> and <b>buffer</b> (optional) — used only by the time-step Simulation:
+      backlog makes a department slower (β), and a full buffer pushes back on its upstream.</li>
+  </ul>
+
+  <h2>The two answers (Analyze)</h2>
+  <ul>
+    <li><b>Steady-state staffing</b> — given makespans, transfer ratios and demand, the required
+      people per department and the split&nbsp;%, plus whether it fits your headcount.</li>
+    <li><b>Capacity at a given staffing</b> — for a staffing level you choose, each department's
+      throughput and which one is the bottleneck.</li>
+  </ul>
+
+  <p class="muted">New here? Open <a href="/examples">Examples</a> and start with
+    &ldquo;Minimal two-step&rdquo;.</p>
+</div>
+{% endblock %}

@@ -12,7 +12,9 @@
     <span class="brand">Staffing&nbsp;Optimizer</span>
     <nav>
       <a href="/builder" class="{{ 'active' if active == 'builder' else '' }}">Builder</a>
+      <a href="/examples" class="{{ 'active' if active == 'examples' else '' }}">Examples</a>
       <a href="/designs" class="{{ 'active' if active == 'designs' else '' }}">Saved&nbsp;designs</a>
+      <a href="/help" class="{{ 'active' if active == 'help' else '' }}">Help</a>
     </nav>
   </header>
   <main>{% block content %}{% endblock %}</main>
